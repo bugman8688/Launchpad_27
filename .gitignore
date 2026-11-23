@@ -1,0 +1,11 @@
+# 构建产物
+.build/
+build/
+
+# 截图与 AI 工作产物（本仓库不收录）
+.screenshots/
+.trae/
+AGENTS.md
+
+# 系统文件
+.DS_Store
