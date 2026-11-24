@@ -4,8 +4,33 @@
 
 | 版本号 | 变更主体 | 作者 | 变更日期 |
 |--------|---------|------|---------|
+| v1.1.0 | 分页网格 + 毛玻璃背景 + 键盘流增强 | hanbing | 2026-11-24 |
 | v1.0.1 | 新增 README 项目说明文档 | hanbing | 2026-11-23 |
 | v1.0.0 | 项目初始化：Launchpad27（macOS 27 启动台替代）MVP 与一键安装脚本 | hanbing | 2026-11-23 |
+
+## v1.1.0 (2026-11-24)
+
+### 新增
+
+- 分页网格：以 1440×900 = 7×5 为基准等比映射行列（3–12 列 / 2–8 行），图标尺寸随格子自适应放大，屏幕参数变化后重算并重铺窗口
+- 触控板水平滑动跟手翻页（位移放大 4 倍、速度与位移双阈值吸附），左右方向键翻页，首尾橡皮筋阻尼回弹不循环
+- 底部页码圆点指示当前页，页数 ≤ 1 时隐藏
+- 毛玻璃背景：读取桌面壁纸做 CoreImage 高斯模糊并叠加 0.25 黑色压暗，读取失败回退暗色渐变
+- 搜索框改为按需浮现浮层（顶部热区或敲字母触发），忽略大小写与重音，Cmd+F 聚焦，Esc 两段式（先清空收起再退出）
+- 图标按需加载：新增 `AppIconCache`（128pt + 进程内缓存 + 占位图），不再同步读图标阻塞首屏
+- 每次唤起窗口重扫应用目录，新装应用无需重启即可出现
+- 新增 `docs/adr/0003-window-level-and-wallpaper-blur.md`，记录窗口层级、模糊方案、自适应网格与手势能力边界
+
+### 改进
+
+- 窗口改为无边框全屏 `LaunchpadWindow`（`CGShieldingWindowLevel` + `canJoinAllSpaces`），切换 Space 后自动重新置顶
+- 移除齿轮、缩放滑块与保存按钮，行列与图标尺寸完全由屏幕推算
+- `.gitignore` 增加 `logs/`，AI 工作日志不入库
+
+### 涉及文件
+
+- 新增：`Models/AppPage.swift`、`Services/AppIconCache.swift`、`Services/AppNotifications.swift`、`Services/DesktopWallpaperService.swift`、`Services/KeyboardMonitor.swift`、`Services/ScrollMonitor.swift`、`Views/BlurredWallpaperBackground.swift`、`Views/LaunchpadWindow.swift`、`docs/adr/0003-window-level-and-wallpaper-blur.md`
+- 修改：`Launchpad27App.swift`、`Models/AppItem.swift`、`Services/AppCatalogService.swift`、`Views/AppIconCell.swift`、`Views/ContentView.swift`、`.gitignore`
 
 ## v1.0.1 (2026-11-23)
 

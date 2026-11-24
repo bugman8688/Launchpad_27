@@ -1,7 +1,7 @@
-import AppKit
+import Foundation
 
 /// 应用枚举服务：只读扫描系统应用目录，收集可启动的 .app。
-@MainActor
+/// 不持有 UI 状态，可以在任意线程调用。
 final class AppCatalogService {
     private let fileManager = FileManager.default
 
@@ -34,8 +34,7 @@ final class AppCatalogService {
                 apps.append(AppItem(
                     id: bundleURL.path,
                     name: displayName(for: bundleURL),
-                    bundleURL: bundleURL,
-                    icon: NSWorkspace.shared.icon(forFile: bundleURL.path)
+                    bundleURL: bundleURL
                 ))
             }
         }
