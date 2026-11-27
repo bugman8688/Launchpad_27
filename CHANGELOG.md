@@ -4,9 +4,24 @@
 
 | 版本号 | 变更主体 | 作者 | 变更日期 |
 |--------|---------|------|---------|
+| v1.1.1 | 点击图标启动流程优化：超时保护 / 防连点 / 失败恢复 | hanbing | 2026-11-27 |
 | v1.1.0 | 分页网格 + 毛玻璃背景 + 键盘流增强 | hanbing | 2026-11-24 |
 | v1.0.1 | 新增 README 项目说明文档 | hanbing | 2026-11-23 |
 | v1.0.0 | 项目初始化：Launchpad27（macOS 27 启动台替代）MVP 与一键安装脚本 | hanbing | 2026-11-23 |
+
+## v1.1.1 (2026-11-27)
+
+### 改进
+
+- 点击图标启动流程优化：`AppLauncher.open` 改为 `async -> Bool`，返回是否启动成功，新增 8 秒超时保护（回调迟迟不来按失败处理，避免界面卡在启动中），并用 `ResumeGate` 保证系统回调与超时竞速时 continuation 只 resume 一次
+- 启动日志改用 `os.Logger`（subsystem + category），补充记录迟到回调、无错误但未返回应用等异常与超时
+- `AppIconCell` 点击不再直接调用 `AppLauncher`，改由上层通过 `onOpen` 闭包统一处理启动与退出
+- `ContentView` 新增 `launchApp` 流程：点击后先淡出（0.15s）；`launchInFlight` 阻止重复点击与背景退出；`launchToken` 防止上一次启动的异步回调污染新一次启动
+- 启动成功后等淡出动画走完再 `orderOut` 隐藏窗口，避免界面提前消失；启动失败则恢复不透明度与可交互状态、不退出，可重试
+
+### 涉及文件
+
+- 修改：`Sources/Launchpad27/Services/AppLauncher.swift`、`Sources/Launchpad27/Views/AppIconCell.swift`、`Sources/Launchpad27/Views/ContentView.swift`
 
 ## v1.1.0 (2026-11-24)
 

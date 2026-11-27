@@ -5,6 +5,8 @@ struct AppIconCell: View {
     let app: AppItem
     /// 按格子尺寸推导的等比缩放系数。
     var scale: CGFloat = 1
+    /// 点击图标后的动作，由上层统一处理启动与退出。
+    var onOpen: () -> Void = {}
 
     @UIState private var icon: NSImage?
     @UIState private var isHovering = false
@@ -38,7 +40,7 @@ struct AppIconCell: View {
             isHovering = hovering
         }
         .onTapGesture {
-            AppLauncher().open(app)
+            onOpen()
         }
         .onAppear(perform: loadIconIfNeeded)
     }

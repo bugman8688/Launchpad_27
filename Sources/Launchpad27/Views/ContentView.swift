@@ -15,6 +15,8 @@ struct ContentView: View {
     private static let baseColumns = 7
     private static let baseRows = 5
     private static let baseScreenSize = CGSize(width: 1440, height: 900)
+    /// 点击图标后的淡出时长；启动成功也至少等这么久，避免界面提前消失。
+    private static let fadeDuration: Double = 0.15
 
     @UIState private var apps: [AppItem] = []
     @UIState private var searchText = ""
@@ -24,6 +26,12 @@ struct ContentView: View {
     @UIState private var isSearchVisible = false
     @UIState private var isTopZoneHovered = false
     @UIState private var dismissTask: Task<Void, Never>?
+    /// 点击图标后的界面不透明度：淡出到 0，启动失败再恢复 1。
+    @UIState private var launchpadOpacity: Double = 1
+    /// 启动流程进行中：阻止重复点击与背景退出。
+    @UIState private var launchInFlight = false
+    /// 启动序号：上一次启动的异步回调不得污染新一次启动。
+    @UIState private var launchToken = 0
     /// 当前屏幕尺寸，随显示器配置变化（拔插、旋转、切换主屏）更新。
     @UIState private var screenSize: CGSize = NSScreen.main?.frame.size ?? CGSize(width: 1352, height: 878)
     @FocusState private var isSearchFocused: Bool
@@ -115,6 +123,8 @@ struct ContentView: View {
                     .transition(.opacity)
             }
         }
+        .opacity(launchpadOpacity)
+        .allowsHitTesting(!launchInFlight)
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)) { _ in
             if let size = NSScreen.main?.frame.size {
                 screenSize = size
@@ -207,7 +217,7 @@ struct ContentView: View {
     private func pageGrid(_ page: AppPage) -> some View {
         LazyVGrid(columns: gridColumns, spacing: 28) {
             ForEach(page.apps) { app in
-                AppIconCell(app: app, scale: layout.scale)
+                AppIconCell(app: app, scale: layout.scale, onOpen: { launchApp(app) })
             }
         }
         .padding(.horizontal, 40)
@@ -440,7 +450,56 @@ struct ContentView: View {
         }
     }
 
-    private func exitLaunchpad() {
+    /// 点击图标：淡出后启动，成功且淡出已走完才隐藏；失败则恢复界面、不退出。
+    private func launchApp(_ app: AppItem) {
+        guard !launchInFlight else { return }
+
+        launchToken += 1
+        let token = launchToken
+        launchInFlight = true
+
+        withAnimation(.easeOut(duration: Self.fadeDuration)) {
+            launchpadOpacity = 0
+        }
+
+        Task { @MainActor in
+            let startedAt = ContinuousClock.now
+            let success = await AppLauncher().open(app)
+            guard launchToken == token, launchInFlight else { return }
+
+            guard success else {
+                resetLaunchState(reveal: true)
+                return
+            }
+
+            // 启动成功也要等淡出动画走完，避免界面提前消失；用单调时钟计算剩余时长。
+            let remaining = Duration.seconds(Self.fadeDuration) - (ContinuousClock.now - startedAt)
+            if remaining > .zero {
+                try? await Task.sleep(for: remaining)
+            }
+            guard launchToken == token, launchInFlight else { return }
+
+            // 先同步 orderOut 再复位透明度，避免窗口未隐藏时闪回可见。
+            exitLaunchpad(force: true)
+            resetLaunchState(reveal: false)
+        }
+    }
+
+    /// 复位启动状态；`reveal` 为 true 时动画恢复不透明度（启动失败路径）。
+    private func resetLaunchState(reveal: Bool) {
+        launchInFlight = false
+        if reveal {
+            withAnimation(.easeIn(duration: Self.fadeDuration)) {
+                launchpadOpacity = 1
+            }
+        } else {
+            launchpadOpacity = 1
+        }
+    }
+
+    /// 退出 Launchpad；启动流程进行中拒绝隐式退出，仅启动结束流程可强制退出。
+    private func exitLaunchpad(force: Bool = false) {
+        guard force || !launchInFlight else { return }
         searchText = ""
         isSearchVisible = false
         isSearchFocused = false
